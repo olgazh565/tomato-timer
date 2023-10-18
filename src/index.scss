@@ -1,4 +1,7 @@
-@import '~normalize.css';
-@import 'style/fonts';
-@import 'style/var';
-@import 'style/style';
+@import './style/var';
+@import './style/fonts';
+@import './style/normalize';
+@import './style/global';
+@import './style/style';
+@import './style/modal';
+@import './style/popup';
