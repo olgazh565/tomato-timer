@@ -54,7 +54,7 @@ export class Tomato {
 			this.showTime(this.timeLeft);
 
 			if (this.timeLeft > 0 && this.isActive) {
-				this.timerId = setTimeout(this.runTaskTimer.bind(this), 1000);
+				this.timerId = setTimeout(this.runTimer.bind(this), 1000);
 			}
 
 			if (this.timeLeft <= 0) {
