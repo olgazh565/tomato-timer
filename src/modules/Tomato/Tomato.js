@@ -84,6 +84,7 @@ export class Tomato {
 			this.status = 'work';
 			this.timeLeft = this[this.status] * 60;
 			this.showTime(this.timeLeft);
+			clearTimeout(this.timerId);
 		} catch (error) {
 			alert(error.message);
 		}

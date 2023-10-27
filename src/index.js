@@ -53,7 +53,6 @@ startBtn.addEventListener('click', () => {
 });
 
 stopBtn.addEventListener('click', () => {
-	clearTimeout(tomato.timerId);
 	tomato.isActive = false;
 	startBtn.disabled = false;
 	tomato.resetTimer();
