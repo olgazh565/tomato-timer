@@ -1,18 +1,13 @@
 export class Task {
-	#id;
 	constructor(title, count = 0) {
-		this.#id = Math.round(Math.random() * 1000);
-		this.count = count;
+		this.id = Math.random().toString().slice(2, 10);
 		this.title = title;
-	}
-
-	get id() {
-		return this.#id;
+		this.count = count;
 	}
 
 	changeCount() {
 		this.count += 1;
-		return this;
+		return this.count;
 	}
 }
 
