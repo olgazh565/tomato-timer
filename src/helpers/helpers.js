@@ -15,11 +15,3 @@ export const declOfNum = (num, words) => words[
 			[2, 0, 1, 1, 1, 2][(num % 10 < 5) ? num % 10 : 5]
 ];
 
-// расчет общего времени
-export const showTimeTotal = (count) => {
-	const time = count * 25;
-	const hours = Math.floor(time / 60);
-	const minutes = time % 60;
-
-	return [hours, minutes];
-};

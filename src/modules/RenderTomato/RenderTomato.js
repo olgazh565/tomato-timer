@@ -1,11 +1,8 @@
-import {createElement, declOfNum, showTimeTotal} from '../../helpers/helpers';
+import {createElement, declOfNum} from '../../helpers/helpers';
 import {ControllerTomato} from '../ControllerTomato/ControllerTomato';
-import {DefaultTask, ImportantTask, NotImportantTask} from '../Task/Task';
-import {Tomato} from '../Tomato/Tomato';
 
 export class RenderTomato {
 	constructor() {
-		this.tomato = new Tomato();
 		this.controller = new ControllerTomato();
 
 		this.main = createElement('main', {
@@ -36,6 +33,7 @@ export class RenderTomato {
 
 	init() {
 		this.renderHeader();
+		this.renderModal();
 		this.renderActiveTask({});
 		this.renderTimer();
 		this.renderForm();
@@ -90,12 +88,11 @@ export class RenderTomato {
 		});
 
 		startBtn.addEventListener('click', () => {
-			if (this.tomato.isActive) return;
-			this.tomato.runTimer();
+			this.controller.handleRunTimer();
 		});
 
 		stopBtn.addEventListener('click', () => {
-			this.tomato.resetTimer();
+			this.controller.handleResetTimer();
 		});
 
 		timerBtns.append(startBtn, stopBtn);
@@ -135,26 +132,12 @@ export class RenderTomato {
 		form.addEventListener('submit', (e) => {
 			e.preventDefault();
 
-			if (!form.title.value.length) return;
+			const newTask = this.controller.handleFormSubmit(
+					form,
+					this.importanceBtn.dataset.importance,
+			);
 
-			let Task;
-			switch (this.importanceBtn.dataset.importance) {
-				case 'important':
-					Task = ImportantTask;
-					break;
-				case 'so-so':
-					Task = NotImportantTask;
-					break;
-				default:
-					Task = DefaultTask;
-					break;
-			}
-
-			const newTask = new Task(form.title.value);
-
-			this.controller.setLocalStorage(newTask);
 			this.renderTask(newTask);
-			this.tomato.addTask(newTask);
 			form.reset();
 		});
 	}
@@ -211,11 +194,19 @@ export class RenderTomato {
 			className: 'count-number',
 			textContent: item.count,
 		});
-		const taskName = createElement('button', {
+		const taskNameBtn = createElement('button', {
 			className: 'pomodoro-tasks__task-text',
 			type: 'button',
+		});
+		const taskName = createElement('span', {
 			textContent: item.title,
 		});
+		taskNameBtn.append(taskName);
+
+		taskNameBtn.addEventListener('focusout', ({target}) => {
+			this.controller.handleEditTaskName(target);
+		});
+
 		const taskBtn = createElement('button', {
 			className: 'pomodoro-tasks__task-button',
 			type: 'button',
@@ -241,7 +232,7 @@ export class RenderTomato {
 		});
 
 		popup.append(popupEditBtn, popupDeleteBtn);
-		taskItem.append(countNumber, taskName, taskBtn, popup);
+		taskItem.append(countNumber, taskNameBtn, taskBtn, popup);
 
 		return taskItem;
 	}
@@ -253,22 +244,9 @@ export class RenderTomato {
 
 			if (deleteBtn) {
 				const task = target.closest('.pomodoro-tasks__list-task');
-				const modal = this.renderModal();
 
-				modal.addEventListener('click', ({target}) => {
-					if (target.closest('.modal-delete__delete-button')) {
-						this.controller.removeLocalStorage(task.id);
-						task.remove();
-
-						if (task.id === this.tomato.activeTask?.id) {
-							this.tomato.isActive = !this.tomato.isActive;
-							this.tomato.resetTimer();
-							this.tomato.activeTask = null;
-							this.renderActiveTask({});
-						}
-					}
-					modal.remove();
-				});
+				this.modalOverlay.style.display = 'block';
+				this.modalOverlay.dataset.id = task.id;
 			}
 		});
 	}
@@ -280,24 +258,11 @@ export class RenderTomato {
 
 			if (editBtn) {
 				const task = target.closest('.pomodoro-tasks__list-task');
-				const taskName = task.querySelector('.pomodoro-tasks__task-text');
+				const taskName = task.querySelector('.pomodoro-tasks__task-text span');
 
 				taskName.setAttribute('contenteditable', 'true');
 				taskName.tabIndex = 0;
 				taskName.focus();
-
-				taskName.addEventListener('focusout', ({target}) => {
-					if (target.getAttribute('contenteditable')) {
-						target.setAttribute('contenteditable', 'false');
-						target.tabIndex = '';
-						this.controller.editLocalStorage(task.id, target.textContent);
-						this.tomato.editTask(task.id, target.textContent);
-
-						if (task.id === this.tomato.activeTask?.id) {
-							this.taskTitle.textContent = target.textContent;
-						}
-					}
-				});
 			}
 		});
 	}
@@ -305,25 +270,9 @@ export class RenderTomato {
 	// выбираем активную задачу
 	setActiveTask() {
 		this.tasksList.addEventListener('click', ({target}) => {
-			const task = target.closest('.pomodoro-tasks__task-text');
+			const newActiveTask = this.controller.handleActiveTask(target);
 
-			if (this.tomato.isActive && task) {
-				this.tomato.isActive = !this.tomato.isActive;
-				this.tomato.resetTimer();
-			}
-
-			if (task) {
-				const currentActiveTask =
-						this.tasksList.querySelector('.pomodoro-tasks__task-text_active');
-				currentActiveTask?.classList.remove('pomodoro-tasks__task-text_active');
-
-				target.classList.add('pomodoro-tasks__task-text_active');
-
-				const newActiveTask = this.tomato.setActiveTask(
-						target.closest('.pomodoro-tasks__list-task').id);
-
-				this.renderActiveTask(newActiveTask);
-			}
+			if (newActiveTask) this.renderActiveTask(newActiveTask);
 		});
 	}
 
@@ -334,7 +283,7 @@ export class RenderTomato {
 			textContent: '0 час 00 мин',
 		});
 
-		const [hours, minutes] = showTimeTotal(this.tomato.count);
+		const [hours, minutes] = this.controller.updateTimeTotal();
 
 		timeTotal.textContent = (hours || minutes) ?
 			`${hours} ${declOfNum(hours, ['час', 'часа', 'часов'])} ${minutes} минут` :
@@ -345,7 +294,7 @@ export class RenderTomato {
 
 	// создаем модальное окно
 	renderModal() {
-		const modalOverlay = createElement('div', {
+		this.modalOverlay = createElement('div', {
 			className: 'modal-overlay',
 		});
 		const modalDelete = createElement('div', {
@@ -371,16 +320,36 @@ export class RenderTomato {
 			textContent: 'Отмена',
 		});
 
+		this.modalOverlay.addEventListener('click', ({target}) => {
+			const option = this.controller.handleDeleteTask(target);
+			if (option === 'running task deleted') this.renderActiveTask({});
+
+			this.modalOverlay.removeAttribute('data-id');
+			this.modalOverlay.style.display = 'none';
+		});
+
 		modalDelete.append(
 				modalTitle,
 				modalCloseBtn,
 				modalDeleteBtn,
 				modalCancelBtn,
 		);
-		modalOverlay.append(modalDelete);
-		document.body.append(modalOverlay);
+		this.modalOverlay.append(modalDelete);
+		document.body.append(this.modalOverlay);
+	}
 
-		return modalOverlay;
+	// отрисовываем хедер
+	renderHeader() {
+		const header = document.createElement('header');
+		header.innerHTML = `
+				<section class="header">
+					<div class="container header__container">
+						<img src="./assets/noto_tomato.svg" class="header__logo" alt="Tomato image">
+						<h1 class="header__title">Tomato timer</h1>
+					</div>
+				</section>
+			`;
+		document.body.prepend(header);
 	}
 
 	// отрисовываем текст инструкции
@@ -413,20 +382,6 @@ export class RenderTomato {
 					</li>
 				</ul>
 		`);
-	}
-
-	// отрисовываем хедер
-	renderHeader() {
-		const header = document.createElement('header');
-		header.innerHTML = `
-			<section class="header">
-				<div class="container header__container">
-					<img src="./assets/noto_tomato.svg" class="header__logo" alt="Tomato image">
-					<h1 class="header__title">Tomato timer</h1>
-				</div>
-			</section>
-		`;
-		document.body.prepend(header);
 	}
 }
 

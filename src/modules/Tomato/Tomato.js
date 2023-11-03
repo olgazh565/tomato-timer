@@ -1,4 +1,4 @@
-import {addZero, declOfNum, showTimeTotal} from '../../helpers/helpers';
+import {ControllerTomato} from '../ControllerTomato/ControllerTomato';
 import {Task} from '../Task/Task';
 
 export class Tomato {
@@ -24,23 +24,9 @@ export class Tomato {
 		this.isActive = false;
 		this.status = 'work';
 
+		this.controller = new ControllerTomato();
+
 		this.resetCount();
-	}
-
-	// получаем общий счетчик из LS
-	getCount() {
-		const data = JSON.parse(localStorage.getItem('count'));
-		if (!data) return 0;
-		return data.count;
-	}
-
-	// сохраняем общий счетчик и текущую дату в LS
-	setCount(count) {
-		localStorage.setItem('count', JSON.stringify(
-				{
-					count, date: new Date().getTime(),
-				},
-		));
 	}
 
 	// получаем задачи из LS, создаем экземпляры класса Task на их основе
@@ -63,18 +49,6 @@ export class Tomato {
 		task.title = title;
 	}
 
-	// отображаем счетчик для активной задачи
-	showActiveTaskCount(count) {
-		const countElemPanel = document.querySelector('.window__panel-task-text');
-		const countElemsTask = document.querySelectorAll('.count-number');
-
-		const countElemTask = [...countElemsTask]
-				.find(elem => elem.parentElement.id === this.activeTask.id);
-
-		countElemPanel.textContent = `Томат ${count}`;
-		countElemTask.textContent = count;
-	}
-
 	// записываем активную задачу
 	setActiveTask(id) {
 		const task = this.tasks.find(item => item.id === id);
@@ -83,13 +57,20 @@ export class Tomato {
 		return this.activeTask;
 	}
 
-	// показываем обратный отсчет времени
-	showTime(seconds) {
-		const minutesShow = addZero(Math.floor(seconds / 60));
-		const secondsShow = addZero(seconds % 60);
+	// получаем общий счетчик из LS
+	getCount() {
+		const data = JSON.parse(localStorage.getItem('count'));
+		if (!data) return 0;
+		return data.count;
+	}
 
-		const timer = document.querySelector('.window__timer-text');
-		timer.textContent = `${minutesShow}:${secondsShow}`;
+	// сохраняем общий счетчик и текущую дату в LS
+	setCount(count) {
+		localStorage.setItem('count', JSON.stringify(
+				{
+					count, date: new Date().getTime(),
+				},
+		));
 	}
 
 	// запускаем таймер
@@ -101,7 +82,7 @@ export class Tomato {
 			}
 			this.isActive = true;
 			this.timeLeft -= 1;
-			this.showTime(this.timeLeft);
+			this.controller.showTime(this.timeLeft);
 
 			if (this.timeLeft > 0 && this.isActive) {
 				this.timerId = setTimeout(this.runTimer.bind(this), 1000);
@@ -112,9 +93,12 @@ export class Tomato {
 					this.count++;
 					this.setCount(this.count);
 					this.activeTask.changeCount();
-					this.showActiveTaskCount(this.activeTask.count);
 					this.setTaskCount(this.activeTask.id, this.activeTask.count);
-					this.updateTimeTotal();
+					this.controller.showActiveTaskCount(
+							this.activeTask.count,
+							this.activeTask.id,
+					);
+					this.controller.updateTimeTotal();
 
 					this.status = this.count % 3 ? 'pause' : 'bigPause';
 				} else {
@@ -137,7 +121,7 @@ export class Tomato {
 			this.isActive = false;
 			this.status = 'work';
 			this.timeLeft = this[this.status] * 60;
-			this.showTime(this.timeLeft);
+			this.controller.showTime(this.timeLeft);
 			clearTimeout(this.timerId);
 		} catch (error) {
 			alert(error.message);
@@ -169,14 +153,5 @@ export class Tomato {
 				} : item
 		));
 		localStorage.setItem('tasks', JSON.stringify(newData));
-	}
-
-	// показываем общее временя работы за день
-	updateTimeTotal() {
-		const [hours, minutes] = showTimeTotal(this.count);
-
-		const timeTotal = document.querySelector('.pomodoro-tasks__deadline-timer');
-		timeTotal.textContent =
-			`${hours} ${declOfNum(hours, ['час', 'часа', 'часов'])} ${minutes} минут`;
 	}
 }
